@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pantones: cartões das famílias</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT@9..144,600,0..100&display=swap">
+<!--
+  Handoff dos cartões das famílias da capa de Pantones (R2 Hub 1.0, 07/10/2026).
+  Referência em HTML e CSS soltos, medida no hub de teste: não é o código do hub
+  (o hub é React; ver README.md). Palco fixo de 1920 x 1080 escalado para caber
+  na janela, como o PalcoFixo do hub. Só os cartões: o painel da busca (80..720),
+  a barra do topo e o pé da página ficam de fora.
+-->
+<style>
+  :root {
+    --fundo-pagina: #f3f0f1;   /* a paleta nova, em teste; a atual é #ece9ea */
+    --preto: #000000;
+    --claro: #f1f1f1;          /* a tinta dos cartões escuros */
+    --linha: calc(1080px / 67); /* a linha da grade: 16,12 px */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--fundo-pagina); font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+  /* o palco de 1920 x 1080, centrado e escalado */
+  .palco { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center center; background: var(--fundo-pagina); overflow: hidden; }
+
+  /* a trilha: de 40 a 957 (por baixo da barra, para a sombra do hover não sair
+     cortada), o 1º cartão na c9 (x 720), topo na linha 9 */
+  .trilha { position: absolute; left: 0; top: 40px; width: 1920px; height: 917px; padding: calc(9 * var(--linha) - 40px) 0 0 720px;
+    display: flex; align-items: flex-start; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; z-index: 2; }
+  .trilha::-webkit-scrollbar { display: none; }
+  .margem-final { flex: 0 0 80px; height: 1px; }   /* o último cartão para na c23 */
+
+  /* o cartão: 160 x 720, raio 20, sombra do v4 */
+  .cartao { position: relative; flex: 0 0 160px; height: 720px; padding: 0; border: 0; border-radius: 20px; cursor: pointer; text-align: left; font: inherit;
+    background: var(--faixa); box-shadow: 7px 7px 42px rgba(0,0,0,.2); transform-origin: center center;
+    transition: transform .32s cubic-bezier(.22,.61,.36,1), box-shadow .32s ease, opacity .25s ease; }
+  .cartao:hover { z-index: 100000 !important; transform: translateY(-8px) scale(1.035); box-shadow: 10px 20px 56px rgba(0,0,0,.3); }
+  .cartao:focus-visible { outline: 2px solid #000; outline-offset: -6px; }
+
+  .contagem { position: absolute; left: 58px; top: 47px; width: 44px; height: 44px; border-radius: 999px; background: var(--preto); color: #fff;
+    display: grid; place-items: center; font: 700 14px/1 Inter, sans-serif; font-variant-numeric: tabular-nums; }
+  .escuro .contagem { box-shadow: 0 0 0 1.5px var(--claro); }
+
+  /* o nome lendo de baixo para cima, ancorado embaixo (caixa 56 x 475) */
+  .nome { position: absolute; left: 52px; top: 122px; width: 56px; height: 475px; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap;
+    font-family: Fraunces, serif; font-variation-settings: 'SOFT' 100, 'opsz' 72; font-weight: 600; font-size: 56px; line-height: 56px; letter-spacing: -.04em;
+    color: var(--tinta); }
+
+  .seta { position: absolute; left: 58px; top: 629px; width: 44px; height: 44px; border: 1.5px solid var(--tinta); border-radius: 999px;
+    display: grid; place-items: center; color: var(--tinta); transition: transform .2s ease, background-color .2s ease, color .2s ease; }
+  .cartao:hover .seta, .cartao:focus-visible .seta { background: var(--tinta); color: var(--faixa); transform: rotate(45deg); }
+
+  /* a entrada da página: a escada com mola */
+  @keyframes cartao-mola { from { opacity: 0; transform: translateY(96px) scale(.96); } }
+  .entrando .cartao { animation: cartao-mola .78s cubic-bezier(.34,1.42,.62,1) backwards; }
+  .entrando .cartao:nth-child(2) { animation-delay: .09s; } .entrando .cartao:nth-child(3) { animation-delay: .18s; }
+  .entrando .cartao:nth-child(4) { animation-delay: .27s; } .entrando .cartao:nth-child(5) { animation-delay: .36s; }
+  .entrando .cartao:nth-child(6) { animation-delay: .45s; } .entrando .cartao:nth-child(7) { animation-delay: .54s; }
+  .entrando .cartao:nth-child(8) { animation-delay: .63s; }
+
+  /* a dica de rolar: a seta animada das trilhas (Lottie), na margem da direita,
+     no meio dos cartões; some na primeira rolagem */
+  .dica { position: absolute; left: calc(1867.3px - 32px); top: calc(9 * var(--linha) + 360px - 32px); width: 64px; height: 64px; z-index: 30;
+    pointer-events: none; animation: dica .4s ease both; }
+  .dica > div { width: 64px; height: 64px; transform: rotate(-90deg); }
+  @keyframes dica { from { opacity: 0; } to { opacity: 1; } }
+
+  .rever { position: absolute; right: 80px; bottom: 40px; font: 500 18px/1 Inter, sans-serif; color: #8f8f8f; background: none; border: 0; cursor: pointer; text-decoration: underline; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cartao, .seta { transition: none !important; }
+    .cartao:hover { transform: none; }
+    .cartao:hover .seta, .cartao:focus-visible .seta { transform: none; }
+    .entrando .cartao { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="palco" id="palco">
+  <div class="trilha entrando" id="trilha" role="group" aria-label="Famílias de cor"></div>
+  <div class="dica" id="dica" aria-hidden="true"><div id="dica-seta"></div></div>
+  <button class="rever" id="rever" type="button">Rever a entrada</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+<script>
+/* As oito famílias, na ordem da capa. Cor: um Pantone real da família
+   (Solid Coated 2024, a tabela do hub). Tinta: preto quando passa de 4,5:1
+   de contraste com o cartão; senão o claro. Contagem: as cores da família na
+   tabela do hub em 07/10/2026 (no hub ela vem da tabela, ao vivo). */
+const FAMILIAS = [
+  { nome: "Amarelos",      pantone: "7403 C",        cor: "#edd586", tinta: "#000000", total: 287 },
+  { nome: "Laranjas",      pantone: "1565 C",        cor: "#fea06a", tinta: "#000000", total: 184 },
+  { nome: "Vermelhos",     pantone: "7625 C",        cor: "#df523e", tinta: "#000000", total: 284 },
+  { nome: "Rosas e roxos", pantone: "197 C",         cor: "#e59caf", tinta: "#000000", total: 643 },
+  { nome: "Azuis",         pantone: "7700 C",        cor: "#115c7d", tinta: "#f1f1f1", total: 531 },
+  { nome: "Verdes",        pantone: "7730 C",        cor: "#499662", tinta: "#000000", total: 543 },
+  { nome: "Marrons",       pantone: "10363 C",       cor: "#7b5a31", tinta: "#f1f1f1", total: 218 },
+  { nome: "Neutros",       pantone: "Warm Gray 3 C", cor: "#bdb8af", tinta: "#000000", total: 529 },
+];
+const fmt = (n) => n.toLocaleString("pt-BR");
+const SETA = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="8 7 17 7 17 16"/></svg>';
+
+const trilha = document.getElementById("trilha");
+FAMILIAS.forEach((f, i) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "cartao" + (f.tinta === "#f1f1f1" ? " escuro" : "");
+  b.style.setProperty("--faixa", f.cor);
+  b.style.setProperty("--tinta", f.tinta);
+  b.style.zIndex = String(i + 1);          /* cada um por cima do anterior */
+  b.setAttribute("aria-label", `${f.nome}, ${fmt(f.total)} cores`);
+  b.title = `Pantone ${f.pantone}`;
+  b.innerHTML = `<span class="contagem" aria-hidden="true">${fmt(f.total)}</span>`
+    + `<span class="nome" aria-hidden="true">${f.nome}</span>`
+    + `<span class="seta" aria-hidden="true">${SETA}</span>`;
+  trilha.appendChild(b);
+});
+const margem = document.createElement("div");
+margem.className = "margem-final";
+margem.setAttribute("aria-hidden", "true");
+trilha.appendChild(margem);
+
+/* o palco escala para caber na janela */
+const palco = document.getElementById("palco");
+function escalar() {
+  const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+  palco.style.transform = `translate(-50%, -50%) scale(${s})`;
+}
+addEventListener("resize", escalar); escalar();
+
+/* a janela de c9 a c23: o cartão cujo meio sai dela apaga e não recebe clique */
+const cartoes = () => [...trilha.querySelectorAll(".cartao")];
+function janela() {
+  cartoes().forEach((c) => {
+    const meio = c.offsetLeft + c.offsetWidth / 2 - trilha.scrollLeft;
+    const dentro = meio >= 720 && meio <= 1840;
+    c.style.opacity = dentro ? "" : "0";
+    c.style.pointerEvents = dentro ? "" : "none";
+  });
+}
+janela();
+
+/* o encaixe pela conta (o do hub: trilha-encaixe.ts): a roda anda um cartão
+   por giro, a partir do destino; parada de rolar por 250 ms, assenta no mais perto */
+const passo = () => cartoes()[0].offsetWidth;
+const limite = (x) => Math.min(Math.max(0, trilha.scrollWidth - trilha.clientWidth), Math.max(0, x));
+const perto = (x) => limite(Math.round(x / passo()) * passo());
+const seguinte = (x, lado) => limite((lado > 0 ? Math.floor(x / passo() + 0.01) + 1 : Math.ceil(x / passo() - 0.01) - 1) * passo());
+let destino = null, liberadoEm = 0, espera = 0;
+let arrasto = { ativo: false, x0: 0, s0: 0, andou: false };
+trilha.addEventListener("wheel", (e) => {
+  if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+  e.preventDefault();
+  const agora = performance.now();
+  if (agora < liberadoEm) return;
+  liberadoEm = agora + 220;
+  destino = seguinte(destino ?? trilha.scrollLeft, Math.sign(e.deltaY));
+  trilha.scrollTo({ left: destino, behavior: "smooth" });
+}, { passive: false });
+function encaixar() { destino = null; const x = trilha.scrollLeft, a = perto(x); if (Math.abs(a - x) > 1) trilha.scrollTo({ left: a, behavior: "smooth" }); }
+function assentar() { if (arrasto.ativo) { espera = setTimeout(assentar, 250); return; } encaixar(); }
+trilha.addEventListener("scroll", () => { requestAnimationFrame(janela); clearTimeout(espera); espera = setTimeout(assentar, 250); }, { passive: true });
+
+/* arrastar rola; o clique que fecha um arrasto não conta */
+trilha.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0) return;
+  const escala = trilha.getBoundingClientRect().width / trilha.offsetWidth || 1;
+  arrasto = { ativo: true, x0: e.clientX, s0: trilha.scrollLeft, andou: false, escala };
+});
+addEventListener("pointermove", (e) => {
+  if (!arrasto.ativo) return;
+  if (e.buttons === 0) { soltar(); return; }
+  const d = e.clientX - arrasto.x0;
+  if (Math.abs(d) > 4) arrasto.andou = true;
+  trilha.scrollLeft = arrasto.s0 - d / arrasto.escala;
+});
+function soltar() { if (!arrasto.ativo) return; arrasto.ativo = false; if (arrasto.andou) encaixar(); }
+addEventListener("pointerup", soltar);
+addEventListener("pointercancel", soltar);
+addEventListener("selectstart", (e) => { if (arrasto.ativo) e.preventDefault(); });
+trilha.addEventListener("click", (e) => { if (arrasto.andou) { e.stopPropagation(); e.preventDefault(); arrasto.andou = false; } }, true);
+
+/* setas do teclado: o foco anda para o cartão vizinho */
+trilha.addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const cs = cartoes(), i = cs.indexOf(document.activeElement);
+  if (i < 0) return;
+  e.preventDefault();
+  const alvo = cs[Math.max(0, Math.min(cs.length - 1, i + (e.key === "ArrowRight" ? 1 : -1)))];
+  alvo.focus();
+  alvo.scrollIntoView({ inline: "nearest", block: "nearest" });
+});
+
+/* a dica de rolar (assets/seta-rolar.json, embutida para abrir sem servidor);
+   some na primeira rolagem, como no hub */
+const SETA_ROLAR = {"v":"5.3.4","fr":48,"ip":0,"op":99,"w":715,"h":715,"nm":"scrolldown_v2","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"Slider ","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":90,"ix":10},"p":{"a":0,"k":[381.5,467.5,0],"ix":2},"a":{"a":0,"k":[0,0,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0,0]],"o":[[0,0],[0,0]],"v":[[-454.733,0],[194.733,2]],"c":false},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0,0,0,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":5,"ix":5},"lc":1,"lj":1,"ml":10,"ml2":{"a":0,"k":10,"ix":8},"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"tm","s":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.981],"y":[0]},"n":["0p667_1_0p981_0"],"t":29,"s":[0],"e":[100]},{"t":52}],"ix":1},"e":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.864],"y":[0]},"n":["0p667_1_0p864_0"],"t":27,"s":[0],"e":[100]},{"t":52}],"ix":2},"o":{"a":0,"k":0,"ix":3},"m":1,"ix":3,"nm":"Trim Paths 1","mn":"ADBE Vector Filter - Trim","hd":false},{"ty":"tr","p":{"a":0,"k":[0,0],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":33,"op":49,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"add line 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":270,"ix":10},"p":{"a":0,"k":[357.5,357.5,0],"ix":2},"a":{"a":0,"k":[0,0,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[-39.353,68.882],[-116.111,0],[-53.749,-94.08],[6.63,0]],"o":[[-2.63,0],[53.749,-94.08],[116.111,0],[39.353,68.882],[0,0]],"v":[[-313.37,-24],[-271.16,-154.584],[0,-312.075],[271.16,-154.584],[309.37,-30]],"c":false},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"tm","s":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.968],"y":[0]},"n":["0p667_1_0p968_0"],"t":56,"s":[0],"e":[100]},{"t":74}],"ix":1},"e":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.878],"y":[0]},"n":["0p667_1_0p878_0"],"t":52,"s":[0],"e":[100]},{"t":73}],"ix":2},"o":{"a":0,"k":0,"ix":3},"m":1,"ix":2,"nm":"Trim Paths 1","mn":"ADBE Vector Filter - Trim","hd":false},{"ty":"st","c":{"a":0,"k":[0,0,0,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":5,"ix":5},"lc":1,"lj":2,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"tr","p":{"a":0,"k":[0,0],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":56,"op":73,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"add line","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":90,"ix":10},"p":{"a":0,"k":[357.5,357.5,0],"ix":2},"a":{"a":0,"k":[0,0,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[39.353,68.882],[116.111,0],[53.749,-94.08],[-2.63,0]],"o":[[6.63,0],[-53.749,-94.08],[-116.111,0],[-39.353,68.882],[0,0]],"v":[[309.37,-30],[271.16,-154.584],[0,-312.075],[-271.16,-154.584],[-313.37,-24]],"c":false},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"tm","s":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.968],"y":[0]},"n":["0p667_1_0p968_0"],"t":56,"s":[0],"e":[100]},{"t":74}],"ix":1},"e":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.878],"y":[0]},"n":["0p667_1_0p878_0"],"t":52,"s":[0],"e":[100]},{"t":73}],"ix":2},"o":{"a":0,"k":0,"ix":3},"m":1,"ix":2,"nm":"Trim Paths 1","mn":"ADBE Vector Filter - Trim","hd":false},{"ty":"st","c":{"a":0,"k":[0,0,0,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":5,"ix":5},"lc":1,"lj":2,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"tr","p":{"a":0,"k":[0,0],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":56,"op":73,"st":0,"bm":0},{"ddd":0,"ind":4,"ty":4,"nm":"Slider Arrow Right 3","parent":5,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[199.388,0.5,0],"ix":2},"a":{"a":0,"k":[72,0,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0]],"v":[[-74.388,-125.277],[75.388,-0.5],[-75.388,125.277]],"c":false},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0,0,0,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":20,"ix":5},"lc":1,"lj":1,"ml":10,"ml2":{"a":0,"k":10,"ix":8},"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"tr","p":{"a":0,"k":[0,0],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"ix":1,"mn":"ADBE Vector Group","hd":false},{"ty":"tm","s":{"a":1,"k":[{"i":{"x":[0.124],"y":[1]},"o":{"x":[0.333],"y":[0]},"n":["0p124_1_0p333_0"],"t":88,"s":[50],"e":[0]},{"t":98}],"ix":1},"e":{"a":1,"k":[{"i":{"x":[0.124],"y":[1]},"o":{"x":[0.333],"y":[0]},"n":["0p124_1_0p333_0"],"t":88,"s":[50],"e":[100]},{"t":98}],"ix":2},"o":{"a":0,"k":0,"ix":3},"m":1,"ix":2,"nm":"Trim Paths 1","mn":"ADBE Vector Filter - Trim","hd":false}],"ip":90,"op":99,"st":65,"bm":0},{"ddd":0,"ind":5,"ty":4,"nm":"line 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":90,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.58,"y":1},"o":{"x":0.411,"y":0},"n":"0p58_1_0p411_0","t":70,"s":[357.5,205.5,0],"e":[357.5,288.5,0],"to":[0,11.456823348999,0],"ti":[0,-2.37651038169861,0]},{"t":90}],"ix":2},"a":{"a":0,"k":[0,0,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0]],"v":[[-197.733,0],[26.486,0],[68.178,0],[197.733,0]],"c":false},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0,0,0,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":20,"ix":5},"lc":1,"lj":1,"ml":10,"ml2":{"a":0,"k":10,"ix":8},"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"tr","p":{"a":0,"k":[0,0],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"ix":1,"mn":"ADBE Vector Group","hd":false},{"ty":"tm","s":{"a":0,"k":0,"ix":1},"e":{"a":1,"k":[{"i":{"x":[0.593],"y":[1]},"o":{"x":[0.414],"y":[0]},"n":["0p593_1_0p414_0"],"t":70,"s":[0],"e":[100]},{"t":88}],"ix":2},"o":{"a":0,"k":0,"ix":3},"m":1,"ix":2,"nm":"Trim Paths 1","mn":"ADBE Vector Filter - Trim","hd":false}],"ip":73,"op":99,"st":60,"bm":0},{"ddd":0,"ind":6,"ty":4,"nm":"Slider Arrow Right 2","parent":7,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[199.388,0.5,0],"ix":2},"a":{"a":0,"k":[72,0,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0]],"v":[[-74.388,-125.277],[75.388,-0.5],[-75.388,125.277]],"c":false},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0,0,0,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":20,"ix":5},"lc":1,"lj":1,"ml":10,"ml2":{"a":0,"k":10,"ix":8},"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"tr","p":{"a":0,"k":[0,0],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"ix":1,"mn":"ADBE Vector Group","hd":false},{"ty":"tm","s":{"a":1,"k":[{"i":{"x":[0.362],"y":[1]},"o":{"x":[0.167],"y":[0.283]},"n":["0p362_1_0p167_0p283"],"t":39,"s":[0],"e":[50]},{"t":56}],"ix":1},"e":{"a":1,"k":[{"i":{"x":[0.362],"y":[1]},"o":{"x":[0.167],"y":[0.267]},"n":["0p362_1_0p167_0p267"],"t":39,"s":[100],"e":[50]},{"t":55}],"ix":2},"o":{"a":0,"k":0,"ix":3},"m":1,"ix":2,"nm":"Trim Paths 1","mn":"ADBE Vector Filter - Trim","hd":false}],"ip":0,"op":51,"st":0,"bm":0},{"ddd":0,"ind":7,"ty":4,"nm":"line","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":90,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.19,"y":1},"o":{"x":0.452,"y":0},"n":"0p19_1_0p452_0","t":0,"s":[357.5,288.5,0],"e":[357.5,479.5,0],"to":[0,31.8333339691162,0],"ti":[0,0,0]},{"i":{"x":0.667,"y":1},"o":{"x":0.56,"y":0},"n":"0p667_1_0p56_0","t":18,"s":[357.5,479.5,0],"e":[357.5,288.5,0],"to":[0,0,0],"ti":[0,-6.5,0]},{"i":{"x":0.667,"y":1},"o":{"x":0.747,"y":0},"n":"0p667_1_0p747_0","t":31,"s":[357.5,288.5,0],"e":[357.5,518.5,0],"to":[0,6.5,0],"ti":[0,-38.3333320617676,0]},{"t":54}],"ix":2},"a":{"a":0,"k":[0,0,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0,0],[0,0],[0,0],[15.348,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[-88.637,0],[0,0]],"v":[[197.733,0],[185.375,0],[153.583,0],[114.222,0],[68.178,0],[-197.733,0]],"c":false},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0,0,0,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":20,"ix":5},"lc":1,"lj":1,"ml":10,"ml2":{"a":0,"k":10,"ix":8},"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"tr","p":{"a":0,"k":[0,0],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"ix":1,"mn":"ADBE Vector Group","hd":false},{"ty":"tm","s":{"a":0,"k":0,"ix":1},"e":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.864],"y":[0]},"n":["0p667_1_0p864_0"],"t":31,"s":[100],"e":[0]},{"t":56}],"ix":2},"o":{"a":0,"k":0,"ix":3},"m":1,"ix":2,"nm":"Trim Paths 1","mn":"ADBE Vector Filter - Trim","hd":false}],"ip":0,"op":52,"st":0,"bm":0},{"ddd":0,"ind":8,"ty":4,"nm":"Slider Arrow Right 4","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":90,"ix":10},"p":{"a":0,"k":[530.75,357.5,0],"ix":2},"a":{"a":0,"k":[0,0,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,191.367],[-191.367,0],[0,-191.367]],"o":[[0,-191.367],[191.367,0],[0,191.367]],"v":[[-346.5,173.25],[0,-173.25],[346.5,173.25]],"c":false},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0,0,0,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":20,"ix":5},"lc":1,"lj":1,"ml":10,"ml2":{"a":0,"k":10,"ix":8},"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"tr","p":{"a":0,"k":[0,0],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"ix":1,"mn":"ADBE Vector Group","hd":false},{"ty":"tm","s":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.871],"y":[0]},"n":["0p667_1_0p871_0"],"t":51,"s":[100],"e":[0]},{"t":74}],"ix":1},"e":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.846],"y":[0]},"n":["0p667_1_0p846_0"],"t":47,"s":[100],"e":[0]},{"t":71}],"ix":2},"o":{"a":0,"k":0,"ix":3},"m":1,"ix":2,"nm":"Trim Paths 1","mn":"ADBE Vector Filter - Trim","hd":false}],"ip":51,"op":73,"st":0,"bm":0},{"ddd":0,"ind":9,"ty":4,"nm":"Slider Arrow Right","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":90,"ix":10},"p":{"a":0,"k":[184.25,357.5,0],"ix":2},"a":{"a":0,"k":[0,0,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,-191.367],[-191.367,0],[0,191.367]],"o":[[0,191.367],[191.367,0],[0,-191.367]],"v":[[-346.5,-173.25],[0,173.25],[346.5,-173.25]],"c":false},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0,0,0,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":20,"ix":5},"lc":1,"lj":1,"ml":10,"ml2":{"a":0,"k":10,"ix":8},"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"tr","p":{"a":0,"k":[0,0],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"ix":1,"mn":"ADBE Vector Group","hd":false},{"ty":"tm","s":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.871],"y":[0]},"n":["0p667_1_0p871_0"],"t":51,"s":[100],"e":[0]},{"t":74}],"ix":1},"e":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.846],"y":[0]},"n":["0p667_1_0p846_0"],"t":47,"s":[100],"e":[0]},{"t":71}],"ix":2},"o":{"a":0,"k":0,"ix":3},"m":1,"ix":2,"nm":"Trim Paths 1","mn":"ADBE Vector Filter - Trim","hd":false}],"ip":51,"op":73,"st":0,"bm":0}],"markers":[]};
+const dica = document.getElementById("dica");
+if (window.lottie) lottie.loadAnimation({ container: document.getElementById("dica-seta"), renderer: "svg", loop: true, autoplay: true, animationData: SETA_ROLAR });
+trilha.addEventListener("scroll", () => { if (dica.isConnected) dica.remove(); }, { passive: true, once: true });
+
+/* a entrada: some quando as animações acabam (como no hub, transicao-hub.ts) */
+function entrar() {
+  trilha.classList.remove("entrando");
+  void trilha.offsetWidth;
+  trilha.classList.add("entrando");
+  requestAnimationFrame(() => {
+    const anims = trilha.getAnimations({ subtree: true }).filter((a) => a.animationName === "cartao-mola");
+    Promise.allSettled(anims.map((a) => a.finished)).then(() => trilha.classList.remove("entrando"));
+  });
+}
+document.getElementById("rever").addEventListener("click", entrar);
+document.fonts.ready.then(entrar);
+</script>
+</body>
+</html>
